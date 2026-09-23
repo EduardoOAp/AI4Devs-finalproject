@@ -28,6 +28,17 @@ DELETE /api/documents/{id}
 - validación de tipo y tamaño del archivo en backend, independientemente de las validaciones del frontend
 - códigos HTTP previsibles: `200`, `201`, `400`, `401`, `403`, `404`, `409`, `413`, `415`, `500`
 
+## Seguridad simulada
+
+La seguridad real no forma parte del alcance del proyecto. La API utilizará un mock de seguridad para proporcionar una identidad y permisos simulados a los casos de uso.
+
+- `401` representa el escenario de prueba en el que no existe una identidad simulada.
+- `403` representa el escenario de prueba en el que existe una identidad simulada pero no posee el permiso funcional requerido.
+- el backend debe evaluar estos permisos simulados antes de ejecutar las operaciones protegidas;
+- no se implementará inicio de sesión real, validación de tokens, proveedor de identidad ni integración con `SeguridadVES`.
+
+El contrato OpenAPI documenta `401` y `403` para representar estos comportamientos funcionales, pero no define un `securityScheme` productivo porque dicha integración está fuera del alcance.
+
 ### Reglas de carga de archivos
 
 La carga de archivos debe cumplir inicialmente las siguientes restricciones contractuales:
@@ -64,6 +75,8 @@ La API debe usar un adaptador interno para traducir:
 - `DataSet` a DTOs tipados
 - nombres legacy a nombres del contrato
 - errores SQL o SOAP a errores HTTP
-- permisos de `SeguridadVES` a autorización de casos de uso
+- identidad y permisos suministrados por el mock de seguridad a autorización funcional de los casos de uso
+
+`SeguridadVES` se mantiene únicamente como referencia del sistema legacy analizado; este proyecto no implementa un adaptador ni realiza llamadas a ese módulo.
 
 El frontend no debe conocer procedimientos almacenados ni nombres de esquemas SQL.

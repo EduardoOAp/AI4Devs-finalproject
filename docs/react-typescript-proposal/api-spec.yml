@@ -10,9 +10,15 @@ info:
     infraestructura legacy. El frontend no debe conocer DataSet, servicios SOAP,
     procedimientos almacenados ni nombres de esquemas SQL.
 
-    El mecanismo definitivo de autenticación de la SPA queda fuera de este
-    contrato hasta que sea definido. Las operaciones sí documentan las respuestas
-    401 y 403 que deberá producir la capa de autorización del backend.
+    La seguridad real queda fuera del alcance de este proyecto. Durante el MVP
+    se utilizará un mock de seguridad que proporcione una identidad y permisos
+    simulados para validar los flujos funcionales. No se implementará inicio de
+    sesión real, validación de tokens, proveedor de identidad ni integración con
+    SeguridadVES.
+
+    Las respuestas 401 y 403 representan escenarios funcionales simulados:
+    ausencia de identidad y usuario sin el permiso requerido, respectivamente.
+    Por esta razón el contrato no define un securityScheme productivo.
 
 tags:
   - name: Document Types
@@ -583,14 +589,14 @@ components:
             $ref: '#/components/schemas/ApiError'
 
     Unauthorized:
-      description: Usuario no autenticado
+      description: No existe una identidad simulada en el contexto de la solicitud
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ApiError'
 
     Forbidden:
-      description: Usuario sin permisos para ejecutar la operación
+      description: La identidad simulada no posee el permiso funcional requerido
       content:
         application/json:
           schema:
@@ -641,6 +647,19 @@ components:
         - PUBLISHED
         - INACTIVE
 
+    CommentStatus:
+      type: string
+      description: |
+        Valores del contrato API para los estados funcionales de comentarios:
+        Abierto (open), En revisión (in_review), Resuelto (resolved),
+        Reabierto (reopened) y Archivado (archived).
+      enum:
+        - open
+        - in_review
+        - resolved
+        - reopened
+        - archived
+
     Document:
       type: object
       required:
@@ -648,6 +667,7 @@ components:
         - documentTypeId
         - title
         - isPublic
+        - status
       properties:
         id:
           type: integer
@@ -809,11 +829,7 @@ components:
           type: string
           minLength: 1
         status:
-          type: string
-          description: |
-            Estado conceptual del comentario. Los estados definidos por la
-            documentación son Abierto, En revisión, Resuelto, Reabierto y Archivado.
-          example: open
+          $ref: '#/components/schemas/CommentStatus'
         author:
           type: object
           required: [login]
@@ -864,10 +880,7 @@ components:
       required: [status]
       properties:
         status:
-          type: string
-          description: |
-            Nuevo estado del comentario. Debe corresponder a uno de los estados
-            funcionales definidos: Abierto, En revisión, Resuelto, Reabierto o Archivado.
+          $ref: '#/components/schemas/CommentStatus'
       additionalProperties: false
 
     CommentStatusHistory:
@@ -890,10 +903,11 @@ components:
           type: integer
           format: int64
         previousStatus:
-          type: string
           nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommentStatus'
         newStatus:
-          type: string
+          $ref: '#/components/schemas/CommentStatus'
         changedBy:
           type: string
           description: Login del usuario que realizó la transición.

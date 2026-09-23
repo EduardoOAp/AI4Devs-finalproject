@@ -2,7 +2,7 @@
 
 ## Paso 1: cerrar el contrato documental
 
-Confirmar campos, reglas, permisos, tipos de documento y comportamiento de archivos usando `dataModel.md`, `DataBase_flow.md` y el código de `VES`.
+Confirmar campos, reglas, permisos funcionales, tipos de documento y comportamiento de archivos usando `dataModel.md`, `DataBase_flow.md` y el código de `VES`.
 
 **Salida:** contrato funcional aprobado.
 
@@ -36,11 +36,13 @@ Agregar carga, descarga, nombre, tipo MIME, tamaño máximo y manejo de errores.
 
 **Salida:** ciclo completo de archivo validado.
 
-## Paso 7: integrar seguridad
+## Paso 7: integrar el mock de seguridad
 
-Mapear la sesión y permisos de `SeguridadVES` a autenticación y autorización de la API.
+Implementar un mock que proporcione identidad y permisos simulados para representar escenarios permitidos, sin identidad y sin permiso. El backend debe consumir ese contexto simulado antes de ejecutar las operaciones protegidas.
 
-**Salida:** cada operación protegida en backend.
+No se realizará integración con `SeguridadVES`, inicio de sesión real, validación de tokens ni conexión con un proveedor de identidad.
+
+**Salida:** operaciones protegidas funcionalmente mediante identidad y permisos simulados.
 
 ## Paso 8: validar convivencia
 

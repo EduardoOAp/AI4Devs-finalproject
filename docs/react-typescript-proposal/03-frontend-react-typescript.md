@@ -28,6 +28,8 @@ src/
   lib/
 ```
 
+En este proyecto, `features/auth/` representa únicamente el contexto de **seguridad simulada** necesario para seleccionar o consumir una identidad y permisos mock. No implementa inicio de sesión real ni integración con `SeguridadVES`.
+
 ## Pantallas iniciales
 
 - `DocumentListPage`
@@ -41,7 +43,7 @@ Cada pantalla debe contemplar:
 - carga
 - resultado vacío
 - error
-- permisos insuficientes
+- permisos insuficientes según el perfil simulado
 - guardado en progreso
 - éxito después de una mutación
 

@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Adaptar al módulo documental de VES: comentarios organizados, estados claros, responsables, historial y reglas para mantenerlos sincronizados con el documento.
+Adaptar al módulo documental de VES a un patrón de trabajo trazable: comentarios organizados, estados claros, responsables, historial y reglas para mantenerlos sincronizados con el documento.
 
 Este diseño se refiere a comentarios de usuarios sobre documentos. Los comentarios de código y de documentación técnica se mantienen mediante revisión de cambios y actualización de los documentos correspondientes.
 
@@ -53,7 +53,17 @@ DocumentoComentarioHistorialEstado
 - `Reabierto`: volvió a requerir atención.
 - `Archivado`: se conserva para historial, pero ya no aparece por defecto.
 
-Los nombres son una propuesta y deben validarse con los usuarios antes de crear tablas o procedimientos.
+Para el contrato de la API, cada estado funcional se representa con un valor estable en JSON:
+
+| Estado funcional | Valor API |
+| --- | --- |
+| Abierto | `open` |
+| En revisión | `in_review` |
+| Resuelto | `resolved` |
+| Reabierto | `reopened` |
+| Archivado | `archived` |
+
+Los nombres funcionales en español son una propuesta y deben validarse con los usuarios antes de crear tablas o procedimientos. Los valores API anteriores forman el contrato técnico y deben mantenerse sincronizados con `CommentStatus` en `api-spec.yml`.
 
 ## Hilos y respuestas
 
@@ -72,11 +82,11 @@ La interfaz debe mostrar cada hilo ordenado por fecha, con el comentario raíz v
 ## Reglas de mantenimiento
 
 1. Un comentario pertenece a un único documento.
-2. El autor puede editar su comentario mientras esté abierto, según la política de seguridad.
+2. El autor puede editar su comentario mientras esté abierto, según los permisos funcionales simulados.
 3. Resolver un comentario no lo elimina.
 4. Reabrir un comentario conserva el historial anterior.
 5. Un comentario archivado no debe desaparecer de la auditoría.
-6. El backend debe verificar que el usuario tenga acceso al documento antes de leer o modificar sus comentarios.
+6. El backend debe verificar, mediante el mock de seguridad, que el usuario simulado tenga acceso al documento antes de leer o modificar sus comentarios.
 7. Las eliminaciones físicas deben evitarse; usar archivado o eliminación lógica.
 8. El texto debe validarse en backend, incluyendo longitud máxima y contenido vacío.
 9. Cada cambio de estado debe guardar quién lo realizó y cuándo.
@@ -179,7 +189,7 @@ El panel de comentarios puede aparecer en `DocumentDetailsPage` y posteriormente
 
 ## Permisos
 
-La autorización debe apoyarse en la identidad y los permisos existentes de `SeguridadVES`, con reglas específicas para:
+La seguridad real está fuera del alcance del proyecto. Para los comentarios se utilizará el mismo mock de seguridad del módulo documental, con identidad y permisos simulados para:
 
 - consultar comentarios
 - crear comentarios
@@ -188,7 +198,7 @@ La autorización debe apoyarse en la identidad y los permisos existentes de `Seg
 - archivar comentarios
 - consultar historial
 
-La UI puede ocultar acciones no permitidas, pero la API debe volver a validar cada operación.
+La UI puede ocultar acciones no permitidas, pero la API debe volver a validar cada operación contra el contexto simulado. No se realizarán llamadas a `SeguridadVES`; su modelo se utiliza únicamente como referencia del sistema legacy.
 
 ## Persistencia y transición
 

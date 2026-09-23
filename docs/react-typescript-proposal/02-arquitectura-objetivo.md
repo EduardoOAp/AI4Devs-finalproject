@@ -9,6 +9,9 @@ React + TypeScript
         v
 API de documentos
         |
+        +--> Mock de seguridad
+        |    (identidad y permisos simulados)
+        |
         v
 Capa de aplicación
         |
@@ -29,7 +32,11 @@ Aplicación React responsable de navegación, formularios, tablas, validaciones 
 
 ### API
 
-Capa HTTP responsable de autenticación, autorización, validación, paginación, errores y serialización JSON.
+Capa HTTP responsable de validación, paginación, errores y serialización JSON. La identidad y los permisos utilizados por los casos de uso provienen del mock de seguridad; la autenticación y autorización reales no forman parte del proyecto.
+
+### Mock de seguridad
+
+Componente de desarrollo y pruebas que simula el usuario actual y sus permisos. Permite representar escenarios autorizados, sin identidad y sin permiso, sin conectarse a `SeguridadVES` ni a un proveedor de identidad real.
 
 ### Aplicación
 
