@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Adaptar al módulo documental de VES el patrón de trabajo trazable observado en `lidr-specboot`: comentarios organizados, estados claros, responsables, historial y reglas para mantenerlos sincronizados con el documento.
+Adaptar al módulo documental de VES: comentarios organizados, estados claros, responsables, historial y reglas para mantenerlos sincronizados con el documento.
 
 Este diseño se refiere a comentarios de usuarios sobre documentos. Los comentarios de código y de documentación técnica se mantienen mediante revisión de cambios y actualización de los documentos correspondientes.
 
@@ -30,6 +30,20 @@ DocumentoComentario
 - ResueltoPor (opcional)
 - VersionDocumento (opcional)
 ```
+
+Para conservar la trazabilidad de los cambios de estado se propone una entidad append-only independiente:
+
+```text
+DocumentoComentarioHistorialEstado
+- Id
+- ComentarioId (FK -> DocumentoComentario)
+- EstadoAnterior (opcional para el estado inicial)
+- EstadoNuevo
+- CambiadoPorLogin
+- FechaCambio
+```
+
+`DocumentoComentario.Estado` representa el estado actual del comentario. `DocumentoComentarioHistorialEstado` conserva la secuencia completa de transiciones. Los registros históricos son **append-only**: una transición registrada no se modifica ni se elimina cuando el comentario cambia nuevamente de estado. Esto permite reconstruir secuencias como `Resuelto -> Reabierto -> Archivado` sin perder información previa.
 
 ### Estados
 
@@ -66,6 +80,7 @@ La interfaz debe mostrar cada hilo ordenado por fecha, con el comentario raíz v
 7. Las eliminaciones físicas deben evitarse; usar archivado o eliminación lógica.
 8. El texto debe validarse en backend, incluyendo longitud máxima y contenido vacío.
 9. Cada cambio de estado debe guardar quién lo realizó y cuándo.
+10. Cada transición de estado debe agregar un registro inmutable en `DocumentoComentarioHistorialEstado`; no debe sobrescribirse el historial previo.
 
 ## Flujo funcional
 
@@ -123,6 +138,27 @@ La eliminación debe representar archivado o baja lógica, no borrar el historia
 }
 ```
 
+### Contrato de historial de estados
+
+`GET /api/documents/{documentId}/comments/history` debe devolver las transiciones registradas de forma que pueda reconstruirse el historial de los comentarios del documento. Cada elemento debe identificar el comentario al que pertenece.
+
+```json
+{
+  "items": [
+    {
+      "id": 47,
+      "commentId": 15,
+      "previousStatus": "resolved",
+      "newStatus": "reopened",
+      "changedBy": "usuario",
+      "changedAt": "2026-09-23T14:20:00Z"
+    }
+  ]
+}
+```
+
+La primera transición puede utilizar `previousStatus: null` cuando represente la creación inicial del comentario en estado `open`.
+
 El frontend React debe consumir este contrato tipado. No debe conocer tablas SQL, procedimientos almacenados ni `DataSet`.
 
 ## Componentes React propuestos
@@ -162,7 +198,7 @@ Crear un adaptador de comentarios separado de `Documentos.vb`. Si todavía no se
 
 ### Fase ORM
 
-Mapear `DocumentoComentario` a una entidad ORM y conservar la API sin cambios. La migración de persistencia no debe obligar a modificar React.
+Mapear `DocumentoComentario` y `DocumentoComentarioHistorialEstado` a entidades ORM y conservar la API sin cambios. La migración de persistencia no debe obligar a modificar React.
 
 ### Integración con el legado
 

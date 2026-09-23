@@ -25,7 +25,26 @@ DELETE /api/documents/{id}
 - validación de fechas y campos requeridos
 - `multipart/form-data` para carga de archivos
 - descarga con `Content-Type` y nombre de archivo correctos
-- códigos HTTP previsibles: `200`, `201`, `400`, `401`, `403`, `404`, `409`, `500`
+- validación de tipo y tamaño del archivo en backend, independientemente de las validaciones del frontend
+- códigos HTTP previsibles: `200`, `201`, `400`, `401`, `403`, `404`, `409`, `413`, `415`, `500`
+
+### Reglas de carga de archivos
+
+La carga de archivos debe cumplir inicialmente las siguientes restricciones contractuales:
+
+- tamaño máximo por archivo: **25 MB**
+- PDF: `.pdf` (`application/pdf`)
+- Microsoft Word: `.doc` (`application/msword`) y `.docx` (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`)
+- Microsoft Excel: `.xls` (`application/vnd.ms-excel`) y `.xlsx` (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`)
+- Microsoft PowerPoint: `.pptx` (`application/vnd.openxmlformats-officedocument.presentationml.presentation`)
+
+El backend debe rechazar archivos que no cumplan estas reglas. El comportamiento HTTP esperado es:
+
+- `400 Bad Request`: archivo ausente, vacío o solicitud `multipart/form-data` inválida
+- `413 Payload Too Large`: archivo superior a 25 MB
+- `415 Unsupported Media Type`: extensión o tipo MIME no permitido
+
+Estas restricciones forman parte del contrato y deben mantenerse sincronizadas con `api-spec.yml` antes de implementar el endpoint de carga. La normalización de nombres de archivo, el aislamiento del almacenamiento y reglas adicionales de `Content-Disposition` quedan fuera de este cambio mientras no se adopten explícitamente como requisitos contractuales.
 
 ## Modelo de respuesta de listado
 

@@ -171,6 +171,8 @@ Opcion
 - Estado
 - TipoOpcion
 
+`TipoOpcion` se mantiene como un atributo escalar del modelo de seguridad. Su finalidad es distinguir la naturaleza de la opción, por ejemplo si corresponde a una opción de menú o a una acción/botón. Mientras no exista evidencia de un catálogo o entidad independiente `TipoOpcion`, no debe modelarse como una relación separada.
+
 Perfil
 - CodigoPerfil
 - Nombre
@@ -218,7 +220,6 @@ erDiagram
     Perfil ||--o{ PerfilOpcion : asigna
     Modulo ||--o{ Opcion : contiene
     Sistema ||--o{ Modulo : agrupa
-    Opcion }o--|| TipoOpcion : pertenece
 ```
 
 ---
