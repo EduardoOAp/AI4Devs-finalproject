@@ -1,238 +1,55 @@
-# 6. Manejo y mantenimiento de comentarios
+# 06. Exclusión del manejo de comentarios de la migración documental
 
-## Objetivo
+> **Decisión de alcance vigente:** la migración comprende **únicamente el módulo de documentos STI**. **No se implementará la funcionalidad de comentarios.** Este documento reemplaza la propuesta anterior de “Manejo y mantenimiento de comentarios” para impedir que sus ideas se interpreten como requisitos aprobados.
 
-Adaptar al módulo documental de VES a un patrón de trabajo trazable: comentarios organizados, estados claros, responsables, historial y reglas para mantenerlos sincronizados con el documento.
+## 1. Propósito de esta constancia
 
-Este diseño se refiere a comentarios de usuarios sobre documentos. Los comentarios de código y de documentación técnica se mantienen mediante revisión de cambios y actualización de los documentos correspondientes.
+Registrar explícitamente que los comentarios de usuarios sobre documentos fueron considerados en diseños anteriores pero quedan **fuera de esta entrega**. Su existencia en versiones históricas del diseño no autoriza crear entidades, API ni tareas. No es una especificación de la capacidad de comentarios.
 
-## Situación actual de VES
+## 2. Funcionalidad que no debe desarrollarse
 
-En el código analizado no se observa una entidad, tabla, procedimiento ni servicio de comentarios para `STI_Documentos`.
+| Elemento anterior | Decisión actual |
+|---|---|
+| `DocumentoComentario` y `DocumentoComentarioHistorialEstado` | No crear entidades, tablas ni cambios SQL |
+| Comentarios raíz, respuestas e hilos | No crear UI, estructuras ni casos de uso |
+| Estados `open`, `in_review`, `resolved`, `reopened`, `archived` | No introducir enums ni estados en contratos |
+| Historial append-only de estados de comentario | No crear trazabilidad específica de comentarios |
+| Rutas `/api/documents/{id}/comments...` | No exponer ni implementar endpoints |
+| Editar/resolver/reabrir/archivar/eliminar comentarios | No implementar reglas ni permisos mock asociados |
+| Pruebas, datos semilla o tareas sobre comentarios | No incluir en `tasks.md`, tests o piloto documental |
+| Mock de permisos `comments.*` | No configurar escenarios ni perfiles para esta capacidad |
 
-Por tanto, no se debe intentar reutilizar `DataSet` o campos de `STI_Documentos` para guardar comentarios. El comentario debe ser una entidad independiente relacionada por `CodigoDocumento`.
+Este descarte **no** elimina ni cambia tablas, funcionalidades o comentarios existentes que pudieran residir en otros sistemas; simplemente establece que este proyecto no los modifica ni añade. Tampoco autoriza eliminar trazas históricas del repositorio sin revisar impacto.
 
-## Entidad propuesta
+## 3. Alcance que sí permanece
 
-Nombre conceptual: `DocumentoComentario`.
+La migración documental cubre catálogo de tipos, consulta/listado, detalle, alta y modificación de metadatos, carga/descarga de archivos, eliminación con reglas definidas, permisos **simulados para pruebas** y convivencia con Web Forms. Véase `01-alcance-y-principios.md` para límites completos y `04-backend-api.md` para el contrato documental propuesto.
 
-```text
-DocumentoComentario
-- Id
-- CodigoDocumento (FK)
-- IdComentarioPadre (FK opcional)
-- Texto
-- Estado
-- AutorLogin
-- FechaCreacion
-- FechaActualizacion
-- FechaResolucion (opcional)
-- ResueltoPor (opcional)
-- VersionDocumento (opcional)
-```
+## 4. Diferencia entre comentarios de usuario y comentarios técnicos
 
-Para conservar la trazabilidad de los cambios de estado se propone una entidad append-only independiente:
+La exclusión se refiere a **comentarios funcionales asociados a documentos**. No prohíbe comentarios aclaratorios en C#/JS, observaciones de revisión de PR, tickets, documentación de decisiones ni retroalimentación de CodeRabbit. Estos siguen los estándares VES de calidad y documentación. Ninguno constituye una entidad de comentarios sobre documentos.
 
-```text
-DocumentoComentarioHistorialEstado
-- Id
-- ComentarioId (FK -> DocumentoComentario)
-- EstadoAnterior (opcional para el estado inicial)
-- EstadoNuevo
-- CambiadoPorLogin
-- FechaCambio
-```
+## 5. Limpieza y control de coherencia
 
-`DocumentoComentario.Estado` representa el estado actual del comentario. `DocumentoComentarioHistorialEstado` conserva la secuencia completa de transiciones. Los registros históricos son **append-only**: una transición registrada no se modifica ni se elimina cuando el comentario cambia nuevamente de estado. Esto permite reconstruir secuencias como `Resuelto -> Reabierto -> Archivado` sin perder información previa.
+Al actualizar el cambio OpenSpec y documentos técnicos:
 
-### Estados
+1. Retirar del alcance activo historias y criterios de aceptación sobre comentarios, respuestas, archivado e historial.
+2. Eliminar definiciones **propuestas no implementadas** de endpoints/DTO/enums/esquemas de comentarios en el contrato de esta migración, previa revisión de consumidores y del propietario del archivo. No borrar definiciones ajenas o en uso solo por coincidencia de nombre.
+3. Quitar tareas específicas de comentarios de los artefactos `tasks.md` del cambio documental; ajustar estimaciones y dependencias.
+4. Evitar modelos, componentes y botones de comentarios en diseños y pruebas del nuevo módulo STI.
+5. Revisar referencias cruzadas de los documentos 01–05 y confirmar que únicamente mencionan comentarios para declarar su exclusión.
+6. Registrar la decisión en el control de cambios/PR correspondiente y mantener el histórico de decisiones, sin presentar el feature como pendiente dentro del alcance actual.
 
-- `Abierto`: requiere atención.
-- `En revisión`: alguien está trabajando en él.
-- `Resuelto`: la observación fue atendida.
-- `Reabierto`: volvió a requerir atención.
-- `Archivado`: se conserva para historial, pero ya no aparece por defecto.
+Búsquedas sugeridas para revisión humana o automatizada: `DocumentoComentario`, `CommentStatus`, `comments/`, `parentCommentId`, `historial de comentarios`, `reopen`, `replies`. Verificar contexto antes de borrar: las coincidencias de esta constancia son intencionales.
 
-Para el contrato de la API, cada estado funcional se representa con un valor estable en JSON:
+## 6. Criterios de aceptación
 
-| Estado funcional | Valor API |
-| --- | --- |
-| Abierto | `open` |
-| En revisión | `in_review` |
-| Resuelto | `resolved` |
-| Reabierto | `reopened` |
-| Archivado | `archived` |
+- Ninguna capacidad, tabla, procedimiento, API, frontend ni prueba **nueva** relacionada con comentarios forma parte del cambio.
+- Los artefactos de OpenSpec y el contrato de la migración documental describen solo las operaciones documentales autorizadas.
+- Los permisos mock cubren únicamente operaciones de documentos; no existe implementación de permisos de comentarios.
+- El plan y los criterios de cierre del módulo no dependen de comentarios.
+- Cualquier futura iniciativa de comentarios exige **requerimiento independiente, análisis de datos, arquitectura, contratos, aprobación y planificación específicos**; no debe activarse por reutilización de esta versión histórica.
 
-Los nombres funcionales en español son una propuesta y deben validarse con los usuarios antes de crear tablas o procedimientos. Los valores API anteriores forman el contrato técnico y deben mantenerse sincronizados con `CommentStatus` en `api-spec.yml`.
+## 7. Estado de la decisión
 
-## Hilos y respuestas
-
-`IdComentarioPadre` permite que un comentario tenga respuestas y forme un hilo.
-
-```text
-Documento
-  +-- Comentario raíz
-       +-- Respuesta
-       +-- Respuesta
-            +-- Respuesta
-```
-
-La interfaz debe mostrar cada hilo ordenado por fecha, con el comentario raíz visible y sus respuestas agrupadas.
-
-## Reglas de mantenimiento
-
-1. Un comentario pertenece a un único documento.
-2. El autor puede editar su comentario mientras esté abierto, según los permisos funcionales simulados.
-3. Resolver un comentario no lo elimina.
-4. Reabrir un comentario conserva el historial anterior.
-5. Un comentario archivado no debe desaparecer de la auditoría.
-6. El backend debe verificar, mediante el mock de seguridad, que el usuario simulado tenga acceso al documento antes de leer o modificar sus comentarios.
-7. Las eliminaciones físicas deben evitarse; usar archivado o eliminación lógica.
-8. El texto debe validarse en backend, incluyendo longitud máxima y contenido vacío.
-9. Cada cambio de estado debe guardar quién lo realizó y cuándo.
-10. Cada transición de estado debe agregar un registro inmutable en `DocumentoComentarioHistorialEstado`; no debe sobrescribirse el historial previo.
-
-## Flujo funcional
-
-```text
-Abrir documento
-      |
-      v
-Consultar comentarios activos
-      |
-      v
-Crear comentario o respuesta
-      |
-      v
-Asignar estado abierto
-      |
-      +--> responder / editar
-      |
-      +--> marcar en revisión
-      |
-      +--> resolver
-                |
-                +--> reabrir si la respuesta no es suficiente
-                +--> archivar cuando termine el ciclo
-```
-
-## API propuesta
-
-```text
-GET    /api/documents/{documentId}/comments
-POST   /api/documents/{documentId}/comments
-POST   /api/documents/{documentId}/comments/{commentId}/replies
-PUT    /api/documents/{documentId}/comments/{commentId}
-PATCH  /api/documents/{documentId}/comments/{commentId}/status
-DELETE /api/documents/{documentId}/comments/{commentId}
-GET    /api/documents/{documentId}/comments/history
-```
-
-La eliminación debe representar archivado o baja lógica, no borrar el historial sin autorización explícita.
-
-## Contrato de comentario
-
-```json
-{
-  "id": 15,
-  "documentId": 42,
-  "parentCommentId": null,
-  "text": "Actualizar la fecha de vigencia.",
-  "status": "open",
-  "author": {
-    "login": "usuario"
-  },
-  "createdAt": "2026-09-17T10:30:00Z",
-  "updatedAt": "2026-09-17T10:30:00Z",
-  "replies": []
-}
-```
-
-### Contrato de historial de estados
-
-`GET /api/documents/{documentId}/comments/history` debe devolver las transiciones registradas de forma que pueda reconstruirse el historial de los comentarios del documento. Cada elemento debe identificar el comentario al que pertenece.
-
-```json
-{
-  "items": [
-    {
-      "id": 47,
-      "commentId": 15,
-      "previousStatus": "resolved",
-      "newStatus": "reopened",
-      "changedBy": "usuario",
-      "changedAt": "2026-09-23T14:20:00Z"
-    }
-  ]
-}
-```
-
-La primera transición puede utilizar `previousStatus: null` cuando represente la creación inicial del comentario en estado `open`.
-
-El frontend React debe consumir este contrato tipado. No debe conocer tablas SQL, procedimientos almacenados ni `DataSet`.
-
-## Componentes React propuestos
-
-```text
-features/comments/
-  api/commentsApi.ts
-  components/CommentThread.tsx
-  components/CommentComposer.tsx
-  components/CommentStatusControl.tsx
-  components/CommentHistory.tsx
-  pages/DocumentCommentsPanel.tsx
-  schemas/commentSchemas.ts
-  types/commentTypes.ts
-```
-
-El panel de comentarios puede aparecer en `DocumentDetailsPage` y posteriormente en el editor, cuando las reglas de negocio estén aprobadas.
-
-## Permisos
-
-La seguridad real está fuera del alcance del proyecto. Para los comentarios se utilizará el mismo mock de seguridad del módulo documental, con identidad y permisos simulados para:
-
-- consultar comentarios
-- crear comentarios
-- editar comentarios propios
-- cambiar estado
-- archivar comentarios
-- consultar historial
-
-La UI puede ocultar acciones no permitidas, pero la API debe volver a validar cada operación contra el contexto simulado. No se realizarán llamadas a `SeguridadVES`; su modelo se utiliza únicamente como referencia del sistema legacy.
-
-## Persistencia y transición
-
-### Fase inicial
-
-Crear un adaptador de comentarios separado de `Documentos.vb`. Si todavía no se usa ORM, puede invocar procedimientos almacenados nuevos y devolver DTOs tipados.
-
-### Fase ORM
-
-Mapear `DocumentoComentario` y `DocumentoComentarioHistorialEstado` a entidades ORM y conservar la API sin cambios. La migración de persistencia no debe obligar a modificar React.
-
-### Integración con el legado
-
-No se recomienda añadir lógica de comentarios directamente a las páginas `.aspx.vb`. La nueva funcionalidad debe vivir detrás de la API propuesta y relacionarse con el documento mediante su identificador.
-
-## Relación con el patrón de lidr-specboot
-
-Se reutilizan estas ideas:
-
-- fuente única para el estado actual del trabajo
-- cambios pequeños y revisables
-- estados explícitos
-- historial antes que borrado
-- revisión separada de implementación
-- documentación actualizada cuando cambia el comportamiento
-
-No se copia literalmente su estructura de agentes o skills dentro de la aplicación, porque esas piezas sirven para el proceso de desarrollo, no para los usuarios finales de VES.
-
-## Criterios de aceptación iniciales
-
-- un usuario autorizado puede crear un comentario sobre un documento
-- una respuesta queda agrupada en el hilo correcto
-- el comentario puede pasar por estados definidos
-- el historial conserva autor, fecha y cambio realizado
-- un usuario sin permiso no puede leer ni modificar comentarios
-- el documento puede seguir consultándose aunque no tenga comentarios
-- la funcionalidad puede convivir con Web Forms durante un piloto
+**Excluido del proyecto actual.** No es una fase pospuesta de esta misma entrega ni una tarea implícita para el equipo de frontend/backend.
