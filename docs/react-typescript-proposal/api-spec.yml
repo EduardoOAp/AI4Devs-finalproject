@@ -1,35 +1,35 @@
 openapi: 3.0.3
 
 info:
-  title: VES Documents API
-  version: 0.1.0
+  title: VES — Contrato propuesto para documentos STI
+  version: 0.2.0
   description: |
-    Contrato HTTP para la modernización incremental del módulo documental de VES.
+    Contrato OpenAPI objetivo de la migración incremental del módulo de documentos STI de VES.
+    No acredita endpoints desplegados ni sustituye las convenciones y rutas/versionado efectivos
+    de Bccr.Supen.Ves.Api y Bccr.Supen.Ves.Mapi; validar antes de implementar.
 
-    La API actúa como límite entre el frontend React + TypeScript y la
-    infraestructura legacy. El frontend no debe conocer DataSet, servicios SOAP,
-    procedimientos almacenados ni nombres de esquemas SQL.
+    Arquitectura objetivo: Bccr.Supen.Ves.UI (React 19, JavaScript/JSX, Vite) →
+    Bccr.Supen.Ves.Api (.NET 8, Controller → SI.SG → IRequestsHandler) →
+    Bccr.Supen.Ves.Mapi (.NET 8, Controller → BW → DA) → SQL Server.
+    La UI nunca consulta MAPI, SOAP ni SQL Server directamente.
 
-    La seguridad real queda fuera del alcance de este proyecto. Durante el MVP
-    se utilizará un mock de seguridad que proporcione una identidad y permisos
-    simulados para validar los flujos funcionales. No se implementará inicio de
-    sesión real, validación de tokens, proveedor de identidad ni integración con
-    SeguridadVES.
+    El alcance comprende catálogo, listado, detalle, metadatos, archivos y eliminación
+    controlada de documentos. Las funcionalidades de comentarios y sus contratos quedan
+    excluidos. La seguridad real no se implementa: los 401/403 describen únicamente
+    escenarios en un entorno aislado con un proveedor de identidad/permisos simulado.
+    No sustituir los mecanismos institucionales vigentes por ese mock.
 
-    Las respuestas 401 y 403 representan escenarios funcionales simulados:
-    ausencia de identidad y usuario sin el permiso requerido, respectivamente.
-    Por esta razón el contrato no define un securityScheme productivo.
+    Los nombres de campos en inglés son DTOs candidatos, no un cambio autorizado de las
+    convenciones C# de los servicios. Contrastar con STI_Documentos, STI_TiposDocumento,
+    los procedimientos almacenados y las abstracciones de API y MAPI.
 
 tags:
-  - name: Document Types
-    description: Catálogo de tipos documentales.
-  - name: Documents
-    description: Consulta y mantenimiento de metadatos documentales.
-  - name: Document Files
-    description: Carga y descarga del archivo asociado a un documento.
-  - name: Comments
-    description: Comentarios, respuestas, estados e historial de comentarios.
-
+- name: Document Types
+  description: Catálogo de tipos documentales.
+- name: Documents
+  description: Consulta y mantenimiento de metadatos documentales.
+- name: Document Files
+  description: Carga y descarga del archivo asociado a un documento.
 paths:
   /api/document-types:
     get:
@@ -55,34 +55,35 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+      x-ves-target-contract: true
   /api/documents:
     get:
       tags: [Documents]
       summary: Lista documentos con paginación y filtros
       parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: pageSize
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-        - name: documentTypeId
-          in: query
-          schema:
-            type: integer
-            format: int64
-        - name: search
-          in: query
-          description: Texto de búsqueda según las reglas del módulo documental.
-          schema:
-            type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: pageSize
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: documentTypeId
+        in: query
+        schema:
+          type: integer
+          format: int64
+      - name: search
+        in: query
+        description: Texto de búsqueda según las reglas del módulo documental.
+        schema:
+          type: string
       responses:
         '200':
           description: Resultado paginado
@@ -99,6 +100,11 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+      description: "Respuesta paginada propuesta. ListarDocumentos en la referencia SQL no acredita\npaginación
+        o búsqueda textual nativas; aprobar estrategia, orden, total y filtrado\nantes de implementar. Conservar
+        condiciones de caducidad y nombre de archivo del\nlegado hasta que negocio apruebe explícitamente un
+        cambio."
+      x-ves-target-contract: true
     post:
       tags: [Documents]
       summary: Crea los metadatos de un documento
@@ -126,9 +132,14 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+      description: "Crear metadatos a través de API → MAPI → BW → DA. El usuario publicador se\nobtiene en
+        backend del contexto mock en pruebas; no se acepta desde el navegador.\nGuardarDocumento del SQL de
+        referencia presenta riesgos de alta concurrente y\ntratamiento de NULL; verificar la persistencia antes
+        de responder 201."
+      x-ves-target-contract: true
   /api/documents/{id}:
     parameters:
-      - $ref: '#/components/parameters/DocumentId'
+    - $ref: '#/components/parameters/DocumentId'
 
     get:
       tags: [Documents]
@@ -149,16 +160,15 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+      x-ves-target-contract: true
     put:
       tags: [Documents]
       summary: Actualiza los metadatos de un documento
-      description: |
-        Actualiza los metadatos permitidos del documento.
-
-        Reglas de ciclo de vida acordadas para el MVP:
-        - un documento publicado no puede volver a borrador;
-        - un documento público representa una versión definitiva publicada;
-        - un documento que deba retirarse conservando trazabilidad pasa a estado INACTIVE.
+      description: |-
+        Actualiza exclusivamente metadatos permitidos de STI_Documentos.
+        No se define un ciclo DRAFT/PUBLISHED/INACTIVE: el modelo documentado expone
+        Publico (S/N), FechaPublicacion y FechaCaduca. Verificar efecto real del
+        procedimiento GuardarDocumento, especialmente con NULL y cambios parciales.
       requestBody:
         required: true
         content:
@@ -181,9 +191,8 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: |
-            La actualización viola una regla de estado del documento,
-            por ejemplo intentar volver de PUBLISHED a DRAFT.
+          description: |-
+            Conflicto comprobado de concurrencia o regla de negocio; no se presume un estado documental nuevo.
           content:
             application/json:
               schema:
@@ -191,22 +200,19 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+      x-ves-target-contract: true
     delete:
       tags: [Documents]
-      summary: Elimina físicamente un documento cuando cumple las reglas del MVP
-      description: |
-        La eliminación física solo puede realizarla el mismo usuario que creó el
-        documento y únicamente cuando no existe trazabilidad posterior a la
-        operación inicial.
-
-        La creación y la carga inicial forman parte de la operación inicial.
-        La eliminación física no procede si:
-        - otro usuario ya consultó o descargó el documento;
-        - el creador realizó cambios posteriores;
-        - existen comentarios, respuestas u otra actividad posterior.
-
-        Si no procede la eliminación física, el documento debe conservarse y
-        retirarse mediante desactivación, no mediante borrado.
+      summary: Elimina un documento únicamente cuando la política vigente lo permita
+      description: |-
+        Operación destructiva condicionada a la confirmación del negocio y de DBA.
+        El procedimiento EliminarDocumento de referencia realiza borrado físico; no hay
+        evidencia suficiente para prometer desactivación o reversibilidad. Antes de habilitarla:
+        validar permiso simulado, titularidad si aplica, actividad/lecturas si se auditan
+        realmente, respaldos, exclusiones y política de recuperación. Nunca usar la existencia
+        de comentarios como precondición, porque los comentarios están fuera del alcance.
+        Si las condiciones no pueden comprobarse, no ejecutar el borrado y devolver un error
+        controlado según las reglas acordadas. No asumir que existe estado INACTIVE.
       responses:
         '204':
           description: Documento eliminado físicamente
@@ -217,7 +223,8 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: El documento posee trazabilidad o no cumple las condiciones para eliminación física
+          description: No se puede eliminar conforme a las condiciones verificadas de negocio o 
+            integridad.
           content:
             application/json:
               schema:
@@ -225,9 +232,10 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+      x-ves-target-contract: true
   /api/documents/{id}/file:
     parameters:
-      - $ref: '#/components/parameters/DocumentId'
+    - $ref: '#/components/parameters/DocumentId'
 
     post:
       tags: [Document Files]
@@ -258,12 +266,12 @@ paths:
                   format: binary
                   description: Archivo PDF, DOC, DOCX, XLS, XLSX o PPTX de hasta 25 MB.
                   x-allowed-extensions:
-                    - .pdf
-                    - .doc
-                    - .docx
-                    - .xls
-                    - .xlsx
-                    - .pptx
+                  - .pdf
+                  - .doc
+                  - .docx
+                  - .xls
+                  - .xlsx
+                  - .pptx
                   x-max-size-bytes: 26214400
             encoding:
               file:
@@ -308,6 +316,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+      x-ves-target-contract: true
     get:
       tags: [Document Files]
       summary: Descarga el archivo asociado a un documento
@@ -344,235 +353,11 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /api/documents/{documentId}/comments:
-    parameters:
-      - $ref: '#/components/parameters/DocumentIdForComments'
-
-    get:
-      tags: [Comments]
-      summary: Consulta los comentarios de un documento
-      description: Devuelve los comentarios organizados en hilos con sus respuestas.
-      responses:
-        '200':
-          description: Comentarios del documento
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Comment'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-    post:
-      tags: [Comments]
-      summary: Crea un comentario raíz en un documento
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateCommentRequest'
-      responses:
-        '201':
-          description: Comentario creado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Comment'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  /api/documents/{documentId}/comments/{commentId}/replies:
-    parameters:
-      - $ref: '#/components/parameters/DocumentIdForComments'
-      - $ref: '#/components/parameters/CommentId'
-
-    post:
-      tags: [Comments]
-      summary: Responde a un comentario
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateCommentRequest'
-      responses:
-        '201':
-          description: Respuesta creada
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Comment'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  /api/documents/{documentId}/comments/{commentId}:
-    parameters:
-      - $ref: '#/components/parameters/DocumentIdForComments'
-      - $ref: '#/components/parameters/CommentId'
-
-    put:
-      tags: [Comments]
-      summary: Edita un comentario
-      description: El autor puede editar su comentario mientras esté abierto, sujeto a la política de seguridad.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateCommentRequest'
-      responses:
-        '200':
-          description: Comentario actualizado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Comment'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-    delete:
-      tags: [Comments]
-      summary: Archiva o da de baja lógica un comentario
-      description: |
-        La eliminación no borra físicamente el historial. Debe representar
-        archivado o baja lógica salvo autorización explícita para otro comportamiento.
-      responses:
-        '204':
-          description: Comentario archivado o dado de baja lógica
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  /api/documents/{documentId}/comments/{commentId}/status:
-    parameters:
-      - $ref: '#/components/parameters/DocumentIdForComments'
-      - $ref: '#/components/parameters/CommentId'
-
-    patch:
-      tags: [Comments]
-      summary: Cambia el estado de un comentario
-      description: |
-        Cada cambio de estado debe guardar quién lo realizó y cuándo.
-        El historial de transiciones es append-only.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ChangeCommentStatusRequest'
-      responses:
-        '200':
-          description: Estado actualizado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Comment'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  /api/documents/{documentId}/comments/history:
-    parameters:
-      - $ref: '#/components/parameters/DocumentIdForComments'
-
-    get:
-      tags: [Comments]
-      summary: Consulta el historial de cambios de estado de los comentarios
-      description: |
-        Devuelve las transiciones de estado almacenadas de forma append-only para
-        reconstruir cambios como Resuelto -> Reabierto -> Archivado.
-      responses:
-        '200':
-          description: Historial de estados de los comentarios
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [items]
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/CommentStatusHistory'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
+      x-ves-target-contract: true
 components:
   parameters:
     DocumentId:
       name: id
-      in: path
-      required: true
-      schema:
-        type: integer
-        format: int64
-        minimum: 1
-
-    DocumentIdForComments:
-      name: documentId
-      in: path
-      required: true
-      schema:
-        type: integer
-        format: int64
-        minimum: 1
-
-    CommentId:
-      name: commentId
       in: path
       required: true
       schema:
@@ -635,39 +420,20 @@ components:
           type: string
         status:
           type: string
-          description: Estado del tipo documental según el catálogo de VES.
+          description: Valor A/I según STI_TiposDocumento (verificar catálogo desplegado).
 
-    DocumentStatus:
-      type: string
-      description: |
-        Estado funcional definido para el MVP.
-        PUBLISHED no puede volver a DRAFT.
-      enum:
-        - DRAFT
-        - PUBLISHED
-        - INACTIVE
-
-    CommentStatus:
-      type: string
-      description: |
-        Valores del contrato API para los estados funcionales de comentarios:
-        Abierto (open), En revisión (in_review), Resuelto (resolved),
-        Reabierto (reopened) y Archivado (archived).
-      enum:
-        - open
-        - in_review
-        - resolved
-        - reopened
-        - archived
-
+          enum:
+          - A
+          - I
     Document:
       type: object
       required:
-        - id
-        - documentTypeId
-        - title
-        - isPublic
-        - status
+      - id
+      - title
+      - summary
+      - isPublic
+      - publicationDate
+      - publishedBy
       properties:
         id:
           type: integer
@@ -675,65 +441,79 @@ components:
         documentTypeId:
           type: integer
           format: int64
+          nullable: true
+          description: CodigoTipoDoc, nullable según SQL de referencia.
         title:
           type: string
+          maxLength: 100
         summary:
           type: string
-          nullable: true
+          nullable: false
+          maxLength: 255
         isPublic:
           type: boolean
-          description: |
-            Indica que el documento es una versión definitiva publicada válida
-            para consulta por entes externos. Solo debe ser true cuando el estado
-            del documento sea PUBLISHED.
-        status:
-          $ref: '#/components/schemas/DocumentStatus'
-        publishedAt:
-          type: string
-          format: date-time
-          nullable: true
-        publishedBy:
-          type: string
-          nullable: true
-        expiresAt:
-          type: string
-          format: date-time
-          nullable: true
+          description: |-
+            Visibilidad pública, mapeada a STI_Documentos.Publico (S/N).
+            No inferir un estado DRAFT/PUBLISHED/INACTIVE: tal enum no está acreditado por el esquema VES.
         fileName:
           type: string
           nullable: true
 
+          maxLength: 30
+        publicationDate:
+          type: string
+          format: date-time
+          description: FechaPublicacion, sin inferir estado adicional.
+        expirationDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: FechaCaduca; nullable en SQL.
+        publishedBy:
+          type: string
+          description: UsuarioPublica; valor obtenido del backend, no del navegador.
     DocumentSummary:
       allOf:
-        - $ref: '#/components/schemas/Document'
+      - $ref: '#/components/schemas/Document'
 
     CreateDocumentRequest:
       type: object
       required:
-        - documentTypeId
-        - title
+      - title
+      - summary
+      - isPublic
+      - publicationDate
       properties:
         documentTypeId:
           type: integer
           format: int64
+          nullable: true
+          description: CodigoTipoDoc es nullable en el SQL de referencia. Validar regla funcional antes 
+            de exigirlo.
         title:
           type: string
           minLength: 1
+          maxLength: 100
         summary:
           type: string
-          nullable: true
+          nullable: false
+          maxLength: 255
+          description: Resumen es NOT NULL en el SQL de referencia; verificar tratamiento de cadena 
+            vacía.
         isPublic:
           type: boolean
-        status:
-          $ref: '#/components/schemas/DocumentStatus'
-        publishedAt:
+          description: "Visibilidad pública, mapeada a STI_Documentos.Publico (S/N).\nNo inferir un estado
+            DRAFT/PUBLISHED/INACTIVE: tal enum no está acreditado por el esquema VES."
+        publicationDate:
+          type: string
+          format: date-time
+          description: FechaPublicacion (SQL datetime); revisar convención de huso horario y 
+            obligatoriedad.
+        expirationDate:
           type: string
           format: date-time
           nullable: true
-        expiresAt:
-          type: string
-          format: date-time
-          nullable: true
+          description: FechaCaduca; nullable en SQL.
       additionalProperties: false
 
     UpdateDocumentRequest:
@@ -743,33 +523,42 @@ components:
         documentTypeId:
           type: integer
           format: int64
+          nullable: true
+          description: CodigoTipoDoc es nullable en el SQL de referencia. Validar regla funcional antes 
+            de exigirlo.
         title:
           type: string
           minLength: 1
+          maxLength: 100
         summary:
           type: string
-          nullable: true
+          nullable: false
+          maxLength: 255
+          description: Resumen es NOT NULL en el SQL de referencia; verificar tratamiento de cadena 
+            vacía.
         isPublic:
           type: boolean
-        status:
-          $ref: '#/components/schemas/DocumentStatus'
-        publishedAt:
+          description: "Visibilidad pública, mapeada a STI_Documentos.Publico (S/N).\nNo inferir un estado
+            DRAFT/PUBLISHED/INACTIVE: tal enum no está acreditado por el esquema VES."
+        publicationDate:
+          type: string
+          format: date-time
+          description: FechaPublicacion (SQL datetime); revisar convención de huso horario y 
+            obligatoriedad.
+        expirationDate:
           type: string
           format: date-time
           nullable: true
-        expiresAt:
-          type: string
-          format: date-time
-          nullable: true
+          description: FechaCaduca; nullable en SQL.
       additionalProperties: false
 
     PagedDocuments:
       type: object
       required:
-        - items
-        - page
-        - pageSize
-        - total
+      - items
+      - page
+      - pageSize
+      - total
       properties:
         items:
           type: array
@@ -788,9 +577,9 @@ components:
     DocumentFileMetadata:
       type: object
       required:
-        - fileName
-        - contentType
-        - fileSize
+      - fileName
+      - contentType
+      - fileSize
       properties:
         fileName:
           type: string
@@ -803,125 +592,13 @@ components:
           minimum: 0
           maximum: 26214400
 
-    Comment:
-      type: object
-      required:
-        - id
-        - documentId
-        - text
-        - status
-        - author
-        - createdAt
-        - updatedAt
-        - replies
-      properties:
-        id:
-          type: integer
-          format: int64
-        documentId:
-          type: integer
-          format: int64
-        parentCommentId:
-          type: integer
-          format: int64
-          nullable: true
-        text:
-          type: string
-          minLength: 1
-        status:
-          $ref: '#/components/schemas/CommentStatus'
-        author:
-          type: object
-          required: [login]
-          properties:
-            login:
-              type: string
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        resolvedAt:
-          type: string
-          format: date-time
-          nullable: true
-        resolvedBy:
-          type: string
-          nullable: true
-        documentVersion:
-          type: string
-          nullable: true
-        replies:
-          type: array
-          items:
-            $ref: '#/components/schemas/Comment'
-
-    CreateCommentRequest:
-      type: object
-      required: [text]
-      properties:
-        text:
-          type: string
-          minLength: 1
-      additionalProperties: false
-
-    UpdateCommentRequest:
-      type: object
-      required: [text]
-      properties:
-        text:
-          type: string
-          minLength: 1
-      additionalProperties: false
-
-    ChangeCommentStatusRequest:
-      type: object
-      required: [status]
-      properties:
-        status:
-          $ref: '#/components/schemas/CommentStatus'
-      additionalProperties: false
-
-    CommentStatusHistory:
-      type: object
-      description: |
-        Registro append-only de una transición de estado de un comentario.
-        Los registros históricos no se actualizan ni eliminan cuando el comentario
-        vuelve a cambiar de estado.
-      required:
-        - id
-        - commentId
-        - newStatus
-        - changedBy
-        - changedAt
-      properties:
-        id:
-          type: integer
-          format: int64
-        commentId:
-          type: integer
-          format: int64
-        previousStatus:
-          nullable: true
-          allOf:
-            - $ref: '#/components/schemas/CommentStatus'
-        newStatus:
-          $ref: '#/components/schemas/CommentStatus'
-        changedBy:
-          type: string
-          description: Login del usuario que realizó la transición.
-        changedAt:
-          type: string
-          format: date-time
-
     ApiError:
       type: object
       description: |
         Formato JSON común para errores. La documentación exige consistencia,
         pero no fija todavía un catálogo definitivo de códigos de error.
       required:
-        - message
+      - message
       properties:
         code:
           type: string
